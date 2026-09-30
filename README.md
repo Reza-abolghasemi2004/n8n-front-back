@@ -1,4 +1,4 @@
-# Project Name
+# n8n - Digital marketing
 
 > A short one-line description of what your project does.
 
@@ -309,4 +309,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Author
 
-**Your Name** – [GitHub](https://github.com/your-username) · [LinkedIn](https://linkedin.com/in/your-profile)
+**Reza Abolghasemi** – [GitHub](https://github.com/Reza-abolghasemi2004) · [LinkedIn](https://www.linkedin.com/in/reza-abolghasemi2004/)
