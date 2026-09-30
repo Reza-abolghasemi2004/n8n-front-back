@@ -1,0 +1,186 @@
+{{ form.hidden_tag() }}
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Company &amp; Contact Information</h2>
+      <p class="card-subtitle">Core client organization details and primary point of contact</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label" for="{{ form.company_name.id }}">Company Name <span style="color: #fb7185;">*</span></label>
+        {{ form.company_name(class="form-control", placeholder="e.g. Apex Cloud Systems") }}
+        {% for error in form.company_name.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.intake_id.id }}">Intake ID</label>
+        {{ form.intake_id(class="form-control", placeholder="INT-recgWMUE97Yjoxy4E", style="font-family: var(--font-mono);") }}
+        <span class="form-hint">Auto-generated unique reference shared with n8n.</span>
+        {% for error in form.intake_id.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.website.id }}">Website</label>
+        {{ form.website(class="form-control", placeholder="https://example.com") }}
+        {% for error in form.website.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.industry.id }}">Industry</label>
+        {{ form.industry(class="form-control", placeholder="e.g. Technology", list="industry-options") }}
+        <datalist id="industry-options">
+          {% for ind in industries %}
+            <option value="{{ ind }}"></option>
+          {% endfor %}
+        </datalist>
+        {% for error in form.industry.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.contact_name.id }}">Contact Name</label>
+        {{ form.contact_name(class="form-control", placeholder="Full name of primary contact") }}
+        {% for error in form.contact_name.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.email.id }}">Email Address</label>
+        {{ form.email(class="form-control", placeholder="contact@company.com") }}
+        {% for error in form.email.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.phone.id }}">Phone Number</label>
+        {{ form.phone(class="form-control", placeholder="+1 (555) 000-0000") }}
+        {% for error in form.phone.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.country.id }}">Country</label>
+        {{ form.country(class="form-control", placeholder="e.g. United States") }}
+        {% for error in form.country.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Project Scope, Services &amp; Scheduling</h2>
+      <p class="card-subtitle">Parameters read by n8n automation workflows (`JSONB` services &amp; attachments)</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label" for="{{ form.goal.id }}">Primary Goal</label>
+        {{ form.goal(class="form-control", placeholder="e.g. Generate Leads") }}
+        {% for error in form.goal.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.monthly_budget.id }}">Monthly Budget ($ USD)</label>
+        {{ form.monthly_budget(class="form-control", placeholder="0.00", step="0.01") }}
+        {% for error in form.monthly_budget.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.priority.id }}">Priority</label>
+        {{ form.priority(class="form-select") }}
+        {% for error in form.priority.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.status.id }}">Status</label>
+        {{ form.status(class="form-select") }}
+        {% for error in form.status.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.deadline.id }}">Target Deadline</label>
+        {{ form.deadline(class="form-control", type="date") }}
+        {% for error in form.deadline.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.custom_services.id }}">Additional Custom Services</label>
+        {{ form.custom_services(class="form-control", placeholder="Comma-separated, e.g. Outbound Enrichment, Data Sync") }}
+        {% for error in form.custom_services.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group full-width">
+        <label class="form-label">Requested Services (PostgreSQL JSONB)</label>
+        <ul class="checkbox-grid">
+          {% for subfield in form.services %}
+            <li>
+              {{ subfield() }}
+              {{ subfield.label() }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="form-group full-width">
+        <label class="form-label" for="{{ form.attachments_text.id }}">Attachments (PostgreSQL JSONB)</label>
+        {{ form.attachments_text(class="form-control", rows="3", placeholder="Growth_Brief.pdf | https://example.com/brief.pdf | pdf\nhttps://example.com/dataset.json") }}
+        <span class="form-hint">Enter one attachment per line (`Name | URL | Type` or URL), or paste a JSON array.</span>
+        {% for error in form.attachments_text.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group full-width">
+        <label class="form-label" for="{{ form.notes.id }}">Internal Notes &amp; Workflow Instructions</label>
+        {{ form.notes(class="form-control", rows="4", placeholder="Context, requirements, or special notes for n8n workflow processing...") }}
+        {% for error in form.notes.errors %}
+          <span class="form-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group full-width">
+        <label class="toggle-row" for="{{ form.trigger_n8n.id }}">
+          {{ form.trigger_n8n() }}
+          <div>
+            <div style="font-weight: 600; color: var(--text-primary); font-size: 13.5px;">
+              Trigger n8n workflow immediately after saving
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary);">
+              Dispatches the project ID and intake payload to <code>{{ n8n_base_url }}{{ n8n_webhook_path }}</code>
+            </div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>

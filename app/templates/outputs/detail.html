@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ output.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+      <span class="mono-id">Output #{{ output.id }}</span>
+      <span class="service-tag">{{ output.output_type }}</span>
+      <span class="badge {{ output.status | output_badge }}">{{ output.status | upper }}</span>
+    </div>
+    <h1 class="page-title">{{ output.title }}</h1>
+    <p class="page-subtitle">
+      {% if output.project %}
+        Project: <a href="{{ url_for('projects.detail', project_id=output.project.id) }}" style="color: #818cf8; font-weight: 600;">{{ output.project.company_name }} ({{ output.project.intake_id }})</a>
+      {% else %}
+        Project ID #{{ output.project_id }}
+      {% endif %}
+      &middot; Created {{ output.created_at | datetime_fmt }}
+    </p>
+  </div>
+
+  <div class="page-actions">
+    <a href="{{ url_for('outputs.index') }}" class="btn btn-secondary">&larr; All Outputs</a>
+    {% if output.project %}
+      <a href="{{ url_for('projects.detail', project_id=output.project.id) }}" class="btn btn-secondary">View Project</a>
+    {% endif %}
+    <form action="{{ url_for('outputs.delete', output_id=output.id) }}" method="POST" data-confirm="Delete output '{{ output.title }}'?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ url_for('outputs.index') }}">
+      <button type="submit" class="btn btn-danger">Delete Output</button>
+    </form>
+  </div>
+</div>
+
+<div class="detail-layout">
+  <div>
+    {% if output.summary %}
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Executive Summary</h2>
+      </div>
+      <div class="card-body">
+        <p style="font-size: 14px; color: var(--text-primary); line-height: 1.65;">{{ output.summary }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Generated Deliverable Content</h2>
+          <p class="card-subtitle">Full text / markdown output produced by n8n</p>
+        </div>
+        {% if output.content %}
+          <button type="button" class="btn btn-secondary btn-sm" data-copy="{{ output.content }}">Copy Content</button>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if output.content %}
+          <div class="prose-block">{{ output.content }}</div>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 13px;">No text body recorded for this output.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Structured Output Data (PostgreSQL JSONB)</h2>
+          <p class="card-subtitle">Machine-readable output metrics and attributes</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <pre class="code-block">{{ output.data | pretty_json }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Status Update -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Review Status</h2>
+          <p class="card-subtitle">Approve or archive this deliverable</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('outputs.update_status', output_id=output.id) }}" method="POST" data-loading-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" for="out-status-select">Status</label>
+            <select id="out-status-select" name="status" class="form-select">
+              {% for st in output_statuses %}
+                <option value="{{ st }}" {% if output.status == st %}selected{% endif %}>{{ st | upper }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;" data-loading-text="Saving...">
+            Update Output Status
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Metadata -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Output Metadata</h2>
+      </div>
+      <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="kv-item">
+          <span class="kv-label">Output ID</span>
+          <span class="kv-value"><code>#{{ output.id }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Output Type</span>
+          <span class="kv-value"><span class="service-tag">{{ output.output_type }}</span></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Linked Project</span>
+          <span class="kv-value">
+            {% if output.project %}
+              <a href="{{ url_for('projects.detail', project_id=output.project.id) }}" style="color: #818cf8;">
+                {{ output.project.company_name }}
+              </a>
+            {% else %}
+              #{{ output.project_id }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Linked Execution</span>
+          <span class="kv-value">
+            {% if output.execution %}
+              <a href="{{ url_for('executions.detail', execution_id=output.execution.id) }}" class="mono-id">
+                Execution #{{ output.execution.id }}
+              </a>
+            {% else %}
+              —
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Created At</span>
+          <span class="kv-value">{{ output.created_at | datetime_fmt }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

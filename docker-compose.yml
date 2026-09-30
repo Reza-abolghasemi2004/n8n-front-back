@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent_platform_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_platform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    # PostgreSQL is NOT publicly exposed; only accessible on the internal Docker network
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - platform_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_platform} -d ${POSTGRES_DB:-agent_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent_platform_flask
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      FLASK_APP: run.py
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_DEBUG: ${FLASK_DEBUG:-0}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-agent_platform}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent_platform}}
+      N8N_BASE_URL: ${N8N_BASE_URL:-http://n8n:5678}
+      N8N_API_KEY: ${N8N_API_KEY:-}
+      N8N_WEBHOOK_PATH: ${N8N_WEBHOOK_PATH:-/webhook/project-intake}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform_net
+    command: >
+      gunicorn
+      --bind 0.0.0.0:5000
+      --workers 4
+      --threads 2
+      --timeout 60
+      --access-logfile -
+      --error-logfile -
+      "run:app"
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: agent_platform_n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-agent_platform}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-agent_platform}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DB_POSTGRESDB_SCHEMA: n8n
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://n8n:5678/}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform_net
+
+networks:
+  platform_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  n8n_data:

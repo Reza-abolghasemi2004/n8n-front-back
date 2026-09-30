@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ project.company_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <span class="page-eyebrow">Edit Intake Record</span>
+    <h1 class="page-title">
+      <span>{{ project.company_name }}</span>
+      <span class="mono-id">{{ project.intake_id }}</span>
+    </h1>
+    <p class="page-subtitle">Update project metadata, services, attachments, or status.</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn btn-secondary">&larr; Back to Project</a>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('projects.edit', project_id=project.id) }}" data-loading-form>
+  {% include "projects/_form.html" %}
+
+  <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 32px;">
+    <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving Changes...">
+      <span>Save Project Changes</span>
+    </button>
+  </div>
+</form>
+{% endblock %}
