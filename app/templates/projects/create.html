@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Create Project{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <span class="page-eyebrow">New Intake Record</span>
+    <h1 class="page-title">Create Project</h1>
+    <p class="page-subtitle">Add a new client project intake record to PostgreSQL for n8n processing.</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">&larr; Back to Projects</a>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('projects.create') }}" data-loading-form>
+  {% include "projects/_form.html" %}
+
+  <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 32px;">
+    <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary" data-loading-text="Creating Project...">
+      <span>Create Project Record</span>
+    </button>
+  </div>
+</form>
+{% endblock %}

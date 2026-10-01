@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Execution #{{ execution.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+      <span class="mono-id">Execution #{{ execution.id }}</span>
+      {% if execution.n8n_execution_id %}
+        <span class="mono-id">{{ execution.n8n_execution_id }}</span>
+      {% endif %}
+      <span class="badge {{ execution.status | exec_badge }}">{{ execution.status | upper }}</span>
+    </div>
+    <h1 class="page-title">{{ execution.workflow_name }}</h1>
+    <p class="page-subtitle">
+      {% if execution.project %}
+        Project: <a href="{{ url_for('projects.detail', project_id=execution.project.id) }}" style="color: #818cf8; font-weight: 600;">{{ execution.project.company_name }} ({{ execution.project.intake_id }})</a>
+      {% else %}
+        Project ID #{{ execution.project_id }}
+      {% endif %}
+      &middot; Started {{ execution.started_at | datetime_fmt }}
+    </p>
+  </div>
+
+  <div class="page-actions">
+    <a href="{{ url_for('executions.index') }}" class="btn btn-secondary">&larr; All Executions</a>
+    {% if execution.project %}
+      <a href="{{ url_for('projects.detail', project_id=execution.project.id) }}" class="btn btn-secondary">View Project</a>
+    {% endif %}
+    {% if execution.n8n_execution_id %}
+      <form action="{{ url_for('executions.sync', execution_id=execution.id) }}" method="POST" data-loading-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary" data-loading-text="Syncing...">Sync from n8n API</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="detail-layout">
+  <div>
+    {% if execution.error_message %}
+    <div class="card" style="border-color: rgba(244, 63, 94, 0.4);">
+      <div class="card-header" style="background: rgba(244, 63, 94, 0.1);">
+        <h2 class="card-title" style="color: #fb7185;">Workflow Error Diagnostic</h2>
+      </div>
+      <div class="card-body">
+        <div class="code-block" style="color: #fda4af;">{{ execution.error_message }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Input Payload Sent to n8n -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Input Payload (PostgreSQL JSONB)</h2>
+          <p class="card-subtitle">Project data dispatched to n8n workflow</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <pre class="code-block">{{ execution.payload | pretty_json }}</pre>
+      </div>
+    </div>
+
+    <!-- Response Data from n8n -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">n8n Response / Execution Telemetry (JSONB)</h2>
+          <p class="card-subtitle">Data returned or written back by n8n</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <pre class="code-block">{{ execution.response_data | pretty_json }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Status Override -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Execution Status</h2>
+          <p class="card-subtitle">Update execution state in PostgreSQL</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('executions.update_status', execution_id=execution.id) }}" method="POST" data-loading-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" for="exec-status-select">Status</label>
+            <select id="exec-status-select" name="status" class="form-select">
+              {% for st in statuses %}
+                <option value="{{ st }}" {% if execution.status == st %}selected{% endif %}>{{ st | upper }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;" data-loading-text="Saving...">
+            Update Execution Status
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Execution Metadata -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Execution Metadata</h2>
+      </div>
+      <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="kv-item">
+          <span class="kv-label">Internal Run ID</span>
+          <span class="kv-value"><code>#{{ execution.id }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">n8n Execution ID</span>
+          <span class="kv-value"><code>{{ execution.n8n_execution_id or "—" }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Workflow ID</span>
+          <span class="kv-value"><code>{{ execution.workflow_id or "—" }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Trigger Source</span>
+          <span class="kv-value"><span class="service-tag">{{ execution.trigger_source }}</span></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Started At</span>
+          <span class="kv-value">{{ execution.started_at | datetime_fmt }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Finished At</span>
+          <span class="kv-value">{{ execution.finished_at | datetime_fmt }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Duration</span>
+          <span class="kv-value"><code>{{ execution.duration_display }}</code></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Linked Outputs -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Outputs Produced ({{ execution.outputs | length }})</h2>
+      </div>
+      <div class="card-body">
+        {% if execution.outputs %}
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px;">
+            {% for out in execution.outputs %}
+              <li style="padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                <a href="{{ url_for('outputs.detail', output_id=out.id) }}" style="font-weight: 600; color: #818cf8; display: block;">
+                  {{ out.title }}
+                </a>
+                <span style="font-size: 11.5px; color: var(--text-muted);">{{ out.output_type }} &middot; {{ out.status }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 13px;">No outputs linked to this execution.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

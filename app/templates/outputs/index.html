@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Generated Outputs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <span class="page-eyebrow">Automation Deliverables</span>
+    <h1 class="page-title">Generated Outputs &amp; Results</h1>
+    <p class="page-subtitle">Browse deliverables, reports, and structured JSONB artifacts produced by n8n workflows.</p>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="{{ url_for('outputs.index') }}" class="filter-bar">
+  <div class="filter-group search-group">
+    <label class="filter-label" for="out-q">Search</label>
+    <input type="text" id="out-q" name="q" class="form-control" placeholder="Title, summary, content, company, intake ID..." value="{{ search_query }}">
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="out-type">Output Type</label>
+    <select id="out-type" name="output_type" class="form-select">
+      <option value="">All Types</option>
+      {% for t in output_types %}
+        <option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="out-status">Status</label>
+    <select id="out-status" name="status" class="form-select">
+      <option value="">All Statuses</option>
+      {% for st in output_statuses %}
+        <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st | upper }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="out-project">Project</label>
+    <select id="out-project" name="project_id" class="form-select">
+      <option value="">All Projects</option>
+      {% for proj in projects_list %}
+        <option value="{{ proj.id }}" {% if project_id == proj.id %}selected{% endif %}>
+          {{ proj.company_name }} ({{ proj.intake_id }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="action-group" style="padding-bottom: 1px;">
+    <button type="submit" class="btn btn-primary">Filter</button>
+    {% if search_query or type_filter or status_filter or project_id %}
+      <a href="{{ url_for('outputs.index') }}" class="btn btn-secondary">Reset</a>
+    {% endif %}
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Output Repository ({{ pagination.total }})</h2>
+      <p class="card-subtitle">Results stored in PostgreSQL `outputs` table</p>
+    </div>
+  </div>
+
+  {% if outputs %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title &amp; Summary</th>
+          <th>Project</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Execution</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for output in outputs %}
+        <tr>
+          <td>
+            <a href="{{ url_for('outputs.detail', output_id=output.id) }}" class="mono-id">#{{ output.id }}</a>
+          </td>
+          <td>
+            <a href="{{ url_for('outputs.detail', output_id=output.id) }}" class="cell-primary">
+              {{ output.title }}
+            </a>
+            {% if output.summary %}
+              <span class="cell-secondary">{{ output.summary[:95] }}{% if output.summary|length > 95 %}...{% endif %}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if output.project %}
+              <a href="{{ url_for('projects.detail', project_id=output.project.id) }}" class="cell-primary">
+                {{ output.project.company_name }}
+              </a>
+              <span class="cell-secondary"><span class="mono-id">{{ output.project.intake_id }}</span></span>
+            {% else %}
+              <span>Project #{{ output.project_id }}</span>
+            {% endif %}
+          </td>
+          <td><span class="service-tag">{{ output.output_type }}</span></td>
+          <td>
+            <span class="badge {{ output.status | output_badge }}">{{ output.status | upper }}</span>
+          </td>
+          <td>
+            {% if output.execution_id %}
+              <a href="{{ url_for('executions.detail', execution_id=output.execution_id) }}" class="mono-id">#{{ output.execution_id }}</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{{ output.created_at | datetime_fmt }}</td>
+          <td>
+            <div class="action-group">
+              <a href="{{ url_for('outputs.detail', output_id=output.id) }}" class="btn btn-secondary btn-sm">View</a>
+              <form action="{{ url_for('outputs.delete', output_id=output.id) }}" method="POST" data-confirm="Delete output '{{ output.title }}'?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div class="pagination-bar">
+    <div class="pagination-info">
+      Showing page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} total outputs)
+    </div>
+    <div class="pagination-links">
+      {% if pagination.has_prev %}
+        <a class="page-btn" href="{{ url_for('outputs.index', page=pagination.prev_num, q=search_query, output_type=type_filter, status=status_filter, project_id=project_id) }}">&larr; Prev</a>
+      {% else %}
+        <span class="page-btn disabled">&larr; Prev</span>
+      {% endif %}
+
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <a class="page-btn {% if p == pagination.page %}active{% endif %}" href="{{ url_for('outputs.index', page=p, q=search_query, output_type=type_filter, status=status_filter, project_id=project_id) }}">{{ p }}</a>
+        {% else %}
+          <span class="page-btn disabled">&hellip;</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.has_next %}
+        <a class="page-btn" href="{{ url_for('outputs.index', page=pagination.next_num, q=search_query, output_type=type_filter, status=status_filter, project_id=project_id) }}">Next &rarr;</a>
+      {% else %}
+        <span class="page-btn disabled">Next &rarr;</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+    </div>
+    <div class="empty-title">No outputs found</div>
+    <p class="empty-description">No generated workflow results match your current filter criteria.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
