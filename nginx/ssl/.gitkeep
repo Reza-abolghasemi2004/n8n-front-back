@@ -1,0 +1,1 @@
+# Place SSL certificate files (fullchain.pem, privkey.pem) in this directory when enabling HTTPS.

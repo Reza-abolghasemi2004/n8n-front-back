@@ -9,8 +9,7 @@ venv/
 env/
 ENV/
 
-# Environment variables (never commit real secrets)
-.env
+# Local overrides
 .env.local
 .env.production
 

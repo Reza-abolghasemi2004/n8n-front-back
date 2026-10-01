@@ -1,30 +1,50 @@
-# NexusFlow — Flask Admin Dashboard for n8n Automation
+# NexusFlow — Flask Admin Dashboard + PostgreSQL + n8n + Nginx
 
-A simple, production-ready internal **Flask Admin Dashboard** for managing project/intake records stored in **PostgreSQL** and processed by **n8n** automation workflows.
+Production-ready internal **Flask Admin Dashboard** for managing project/intake records stored in **PostgreSQL 16**, processed by **n8n**, and served behind a containerized **Nginx Reverse Proxy**.
+
+- **Target Server IP:** `81.12.50.30`
+- **Target Domain:** `http://n8n.rezaabolghasemi.ir`
 
 ---
 
 ## Architecture
 
-The platform consists of only three core components:
-
 ```text
-Admin
+Internet (http://n8n.rezaabolghasemi.ir / 81.12.50.30)
    │
    ▼
-Flask Admin Dashboard (Gunicorn)
-   │
-   ▼
-PostgreSQL 16
-   ▲
-   │
-  n8n
+Nginx Container (Port 80 / 443)
+   ├── /                 ──► Flask Admin Dashboard (Gunicorn :5000)
+   └── /webhook/*        ──► n8n Automation Engine (:5678)
+                                 │
+                                 ▼
+                         PostgreSQL 16 (:5432, internal only)
 ```
 
-- **Flask** manages and displays project intake data, authentication, execution telemetry, and generated outputs.
-- **PostgreSQL** is the primary relational + `JSONB` database shared by Flask and n8n on an internal Docker network.
-- **n8n** runs the automation workflows, reads project records from PostgreSQL, and writes execution statuses and generated outputs back to PostgreSQL.
-- **Single User Type:** Administrator (`AdminUser`). There is no public registration, no customer portal, no RBAC, and no microservice orchestrator.
+All 4 containers (`nginx`, `flask`, `postgres`, `n8n`) run on the shared internal Docker network `platform_net`.
+
+---
+
+## Pre-Configured Credentials (`.env`)
+
+The `.env` file is already pre-configured with strong production keys and passwords for `81.12.50.30` and `n8n.rezaabolghasemi.ir`:
+
+| Variable | Configured Value |
+| :--- | :--- |
+| **Server IP** | `81.12.50.30` |
+| **Domain** | `n8n.rezaabolghasemi.ir` |
+| **Admin Dashboard URL** | `http://n8n.rezaabolghasemi.ir` (or `http://81.12.50.30`) |
+| **n8n Editor URL** | `http://n8n.rezaabolghasemi.ir:5678` (or `http://81.12.50.30:5678`) |
+| **Admin Username** | `admin` |
+| **Admin Email** | `admin@n8n.rezaabolghasemi.ir` |
+| **Admin Password** | `Reza@Admin2026!#` |
+| **PostgreSQL Host (internal)** | `postgres` |
+| **PostgreSQL Port** | `5432` |
+| **PostgreSQL Database** | `agent_platform` |
+| **PostgreSQL User** | `agent_platform` |
+| **PostgreSQL Password** | `Nx9vK4mP8qR2wL7xJ5tB3zF6hY1cD0sA` |
+| **Flask `SECRET_KEY`** | `8f4e2a9c7b1d6e3f5a0c8b2d4e6f1a3c9b7e5d2f4a8c1b6e3d9f0a7c5b2e4d8f` |
+| **n8n Encryption Key** | `k9P2mX7vL4qR8nW1zB5tF3yH6jC0dG8s` |
 
 ---
 
@@ -33,163 +53,140 @@ PostgreSQL 16
 ```text
 .
 ├── app/
-│   ├── __init__.py              # Flask application factory, Jinja filters, error handlers
-│   ├── config.py                # Environment-driven configuration (PostgreSQL, CSRF, cookies, n8n)
+│   ├── __init__.py              # Flask factory + ProxyFix for Nginx reverse proxy
+│   ├── config.py                # PostgreSQL, session security, CSRF, n8n config
 │   ├── extensions.py            # SQLAlchemy, Flask-Migrate, Flask-Login, CSRFProtect
-│   ├── cli.py                   # Flask CLI commands (`flask create-admin`, `flask seed-demo`)
-│   ├── forms.py                 # Flask-WTF server-side validated forms
-│   │
-│   ├── routes/
-│   │   ├── auth.py              # /login and /logout routes
-│   │   ├── dashboard.py         # / (Overview metrics, recent projects & executions) and /health
-│   │   ├── projects.py          # /projects CRUD, filters, status updates, n8n triggers
-│   │   ├── executions.py        # /executions list, detail, and n8n API sync
-│   │   └── outputs.py           # /outputs list, detail, status review, and logging
-│   │
-│   ├── models/
-│   │   ├── user.py              # AdminUser model (Werkzeug password hashing + Flask-Login)
-│   │   ├── project.py           # Project intake model with PostgreSQL JSONB services & attachments
-│   │   ├── execution.py         # Execution model tracking n8n workflow runs & JSONB payloads
-│   │   └── output.py            # Output model storing n8n deliverables & JSONB data
-│   │
-│   ├── integrations/
-│   │   └── n8n.py               # trigger_workflow(), get_execution(), sync_execution_status()
-│   │
-│   ├── templates/
-│   │   ├── base.html
-│   │   ├── errors/
-│   │   ├── auth/
-│   │   ├── dashboard/
-│   │   ├── projects/
-│   │   ├── executions/
-│   │   └── outputs/
-│   │
-│   └── static/
-│       ├── css/style.css        # Modern dark SaaS UI design system
-│       └── js/app.js            # Toast notifications, loading states, confirmations
-│
-├── migrations/                  # Flask-Migrate / Alembic PostgreSQL migrations
-├── n8n/
-│   └── workflows/
-│       ├── project_intake_automation.json
-│       └── README.md
-│
-├── tests/                       # Pytest test suite running against PostgreSQL
-├── requirements.txt
+│   ├── cli.py                   # CLI commands (`flask create-admin`, `flask seed-demo`)
+│   ├── forms.py                 # Server-side validated WTForms
+│   ├── models/                  # AdminUser, Project, Execution, Output (PostgreSQL JSONB)
+│   ├── integrations/n8n.py      # trigger_workflow(), get_execution(), sync_execution_status()
+│   ├── routes/                  # auth, dashboard, projects, executions, outputs
+│   ├── templates/               # Modern Dark SaaS Jinja2 templates
+│   └── static/                  # CSS & JS assets
+├── nginx/
+│   ├── nginx.conf               # Main Nginx worker, gzip & buffer configuration
+│   ├── conf.d/default.conf      # Reverse proxy for n8n.rezaabolghasemi.ir & 81.12.50.30
+│   └── ssl/                     # Directory for SSL certificates (fullchain.pem / privkey.pem)
+├── migrations/                  # Flask-Migrate / Alembic database migrations
+├── n8n/workflows/               # Exported n8n workflow JSON (`project_intake_automation.json`)
+├── tests/                       # Pytest test suite
 ├── Dockerfile
 ├── docker-compose.yml
+├── .env
 ├── .env.example
-├── .gitignore
-├── run.py
-└── README.md
+├── requirements.txt
+└── run.py
 ```
 
 ---
 
-## Manual Setup Instructions
+## Complete Server Deployment Guide (`81.12.50.30` / `n8n.rezaabolghasemi.ir`)
 
-### Step 1 — Create `.env`
+### Step 1 — DNS Check
 
-Copy the example environment file:
+Make sure your DNS `A` record points to your server IP:
+
+- **Host:** `n8n.rezaabolghasemi.ir`
+- **Type:** `A`
+- **Value:** `81.12.50.30`
+
+---
+
+### Step 2 — SSH into the Server & Clone the Repository
 
 ```bash
-cp .env.example .env
+ssh root@81.12.50.30
+
+git clone https://github.com/Reza-abolghasemi2004/n8n-front-back.git
+cd n8n-front-back
+git checkout arena/01a0f116-n8n-front-back
 ```
 
-Open `.env` and update the following values before starting the stack:
-
-- `POSTGRES_PASSWORD`: Set a strong, unique password for PostgreSQL.
-- `DATABASE_URL`: Replace `CHANGE_ME` with the exact `POSTGRES_PASSWORD` you chose:
-  ```env
-  DATABASE_URL=postgresql+psycopg://agent_platform:YOUR_STRONG_PASSWORD@postgres:5432/agent_platform
-  ```
-- `SECRET_KEY`: Generate a strong random secret key (e.g. `openssl rand -hex 32`).
-- `N8N_API_KEY`: Set your n8n API key (generated inside n8n under **Settings → n8n API**).
-- `N8N_ENCRYPTION_KEY`: Set a random 32-character encryption key for n8n credentials.
-- `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: Credentials for bootstrapping the initial administrator account.
+*(Note: `.env` and `nginx/conf.d/default.conf` are already pre-configured in the repository—no manual editing is required.)*
 
 ---
 
-### Step 2 — Start the Services
-
-Build and launch `flask`, `postgres`, and `n8n` in detached mode:
+### Step 3 — Build and Start All Containers (`nginx`, `flask`, `postgres`, `n8n`)
 
 ```bash
 docker compose up -d --build
 ```
 
-All services communicate over the internal Docker network (`platform_net`) using service hostnames (`postgres:5432`, `n8n:5678`). PostgreSQL is **not** exposed to the public host network.
+Verify that all 4 containers are running:
+
+```bash
+docker compose ps
+```
 
 ---
 
-### Step 3 — Run Database Migrations
+### Step 4 — Run PostgreSQL Database Migrations
 
-Apply the Alembic / Flask-Migrate schema migrations to PostgreSQL:
+Create all database tables (`admin_users`, `projects`, `executions`, `outputs`) and indexes:
 
 ```bash
 docker compose exec flask flask db upgrade
 ```
 
-If you modify models in the future, generate and apply new migrations with:
-
-```bash
-docker compose exec flask flask db migrate -m "Describe schema change"
-docker compose exec flask flask db upgrade
-```
-
 ---
 
-### Step 4 — Create the First Admin Account
+### Step 5 — Create the Admin Account & Optional Demo Data
 
-Create your administrator account using the built-in Flask CLI command:
+Run the `create-admin` command (it automatically uses `ADMIN_USERNAME=admin`, `ADMIN_EMAIL=admin@n8n.rezaabolghasemi.ir`, and `ADMIN_PASSWORD=Reza@Admin2026!#` from `.env`):
 
 ```bash
-docker compose exec flask flask create-admin \
-  --username admin \
-  --email admin@example.com \
-  --password "YourStrongPasswordHere"
+docker compose exec flask flask create-admin
 ```
 
-*(Optional)* To populate sample projects, executions, and outputs for testing:
+*(Optional)* Seed sample projects, executions, and outputs so the dashboard is populated immediately:
 
 ```bash
 docker compose exec flask flask seed-demo
 ```
 
+Now open your browser and sign in to the **Admin Dashboard**:
+
+- **URL:** [http://n8n.rezaabolghasemi.ir](http://n8n.rezaabolghasemi.ir) *(or `http://81.12.50.30`)*
+- **Username:** `admin` *(or `admin@n8n.rezaabolghasemi.ir`)*
+- **Password:** `Reza@Admin2026!#`
+
 ---
 
-### Step 5 — Configure n8n and Import Workflows
+### Step 6 — Configure n8n & Import the Workflow
 
-1. Open n8n at `http://localhost:5678` (or your configured n8n domain) and complete the initial owner setup.
-2. Go to **Settings → n8n API**, create an API key, and set `N8N_API_KEY` in `.env` (then run `docker compose up -d flask`).
-3. In n8n, create a **Postgres** credential named `Agent Platform PostgreSQL`:
-   - **Host:** `postgres`
+1. Open n8n in your browser at:
+   - [http://n8n.rezaabolghasemi.ir:5678](http://n8n.rezaabolghasemi.ir:5678) *(or `http://81.12.50.30:5678`)*
+2. Complete the initial n8n owner setup screen.
+3. In n8n, go to **Credentials → Add Credential → Postgres** and enter:
+   - **Credential Name:** `Agent Platform PostgreSQL`
+   - **Host:** `postgres` *(internal Docker hostname — do NOT use `localhost`)*
    - **Database:** `agent_platform`
    - **User:** `agent_platform`
-   - **Password:** *(your `POSTGRES_PASSWORD` from `.env`)*
+   - **Password:** `Nx9vK4mP8qR2wL7xJ5tB3zF6hY1cD0sA`
    - **Port:** `5432`
-4. Import the workflow from `n8n/workflows/project_intake_automation.json` (**Workflows → Import from File**), select your `Agent Platform PostgreSQL` credential on the Postgres nodes, and toggle the workflow to **Active**.
+   - **SSL:** `Disable`
+4. Go to **Workflows → Import from File** and import:
+   - `n8n/workflows/project_intake_automation.json`
+5. Select the `Agent Platform PostgreSQL` credential inside the two Postgres nodes and switch the workflow toggle in the top-right corner to **Active**.
+6. *(Optional)* If you generate an n8n API key under **Settings → n8n API**, update `N8N_API_KEY` in `.env` and run `docker compose up -d flask`.
 
 ---
 
-### Step 6 — Configure Reverse Proxy / Domain / HTTPS
+### Step 7 — Monitoring & Logs on the Server
 
-For production deployment behind Nginx, Caddy, or Traefik:
-
-1. Proxy HTTPS traffic (`443`) for your admin domain (e.g. `admin.yourdomain.com`) to `http://127.0.0.1:5000`.
-2. Set `SESSION_COOKIE_SECURE=true` in `.env` so session cookies are only transmitted over HTTPS.
-3. Keep port `5432` unexposed (handled automatically by `docker-compose.yml`).
-
----
-
-### Step 7 — Checking Logs
-
-Tail live logs for each service:
+Check real-time container logs at any time:
 
 ```bash
+docker compose logs -f nginx
 docker compose logs -f flask
 docker compose logs -f postgres
 docker compose logs -f n8n
+```
+
+Restart Nginx after any config changes in `./nginx/conf.d/default.conf`:
+
+```bash
+docker compose restart nginx
 ```
 
 ---
@@ -197,14 +194,14 @@ docker compose logs -f n8n
 ### Step 8 — Production Checklist
 
 ```text
-[ ] .env configured
-[ ] Strong database password
-[ ] Strong SECRET_KEY
-[ ] Admin account created
-[ ] Database migration completed
-[ ] PostgreSQL persistent volume
-[ ] n8n persistent volume
-[ ] HTTPS configured
-[ ] PostgreSQL not publicly exposed
-[ ] Flask running with Gunicorn
+[x] .env pre-configured with strong passwords & keys
+[x] Nginx container configured in ./nginx/conf.d/default.conf for 81.12.50.30 & n8n.rezaabolghasemi.ir
+[x] PostgreSQL persistent volume (postgres_data)
+[x] n8n persistent volume (n8n_data)
+[x] PostgreSQL isolated on internal Docker network (not publicly exposed)
+[x] Flask running with Gunicorn behind Nginx reverse proxy
+[ ] Run `docker compose up -d --build` on 81.12.50.30
+[ ] Run `docker compose exec flask flask db upgrade`
+[ ] Run `docker compose exec flask flask create-admin`
+[ ] Import & activate workflow in n8n (`n8n/workflows/project_intake_automation.json`)
 ```

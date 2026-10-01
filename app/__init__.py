@@ -3,6 +3,7 @@ import os
 from datetime import date, datetime
 from decimal import Decimal
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 from app.cli import register_cli_commands
 from app.config import CONFIG_MAP, Config, normalize_database_url
 from app.extensions import csrf, db, login_manager, migrate
@@ -11,6 +12,7 @@ from app.extensions import csrf, db, login_manager, migrate
 def create_app(config_name: str | type | dict | None = None) -> Flask:
     """Application factory for the Automation Platform Admin Dashboard."""
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     if config_name is None:
         env_name = os.getenv("FLASK_ENV", "production").lower()

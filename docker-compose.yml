@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-agent_platform}
       POSTGRES_USER: ${POSTGRES_USER:-agent_platform}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Nx9vK4mP8qR2wL7xJ5tB3zF6hY1cD0sA}
     # PostgreSQL is NOT publicly exposed; only accessible on the internal Docker network
     expose:
       - "5432"
@@ -33,14 +33,14 @@ services:
       FLASK_APP: run.py
       FLASK_ENV: ${FLASK_ENV:-production}
       FLASK_DEBUG: ${FLASK_DEBUG:-0}
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-agent_platform}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent_platform}}
+      SECRET_KEY: ${SECRET_KEY:-8f4e2a9c7b1d6e3f5a0c8b2d4e6f1a3c9b7e5d2f4a8c1b6e3d9f0a7c5b2e4d8f}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://agent_platform:Nx9vK4mP8qR2wL7xJ5tB3zF6hY1cD0sA@postgres:5432/agent_platform}
       N8N_BASE_URL: ${N8N_BASE_URL:-http://n8n:5678}
-      N8N_API_KEY: ${N8N_API_KEY:-}
+      N8N_API_KEY: ${N8N_API_KEY:-n8n_api_7c9e2b4f8a1d3e6c0b5a9d2f4e7c1b8a3f6d0e2c}
       N8N_WEBHOOK_PATH: ${N8N_WEBHOOK_PATH:-/webhook/project-intake}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
-    ports:
-      - "5000:5000"
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    expose:
+      - "5000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,13 +66,14 @@ services:
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-agent_platform}
       DB_POSTGRESDB_USER: ${POSTGRES_USER:-agent_platform}
-      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-Nx9vK4mP8qR2wL7xJ5tB3zF6hY1cD0sA}
       DB_POSTGRESDB_SCHEMA: n8n
-      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_HOST: ${N8N_HOST:-n8n.rezaabolghasemi.ir}
       N8N_PORT: 5678
       N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
-      WEBHOOK_URL: ${WEBHOOK_URL:-http://n8n:5678/}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-false}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://n8n.rezaabolghasemi.ir/}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-k9P2mX7vL4qR8nW1zB5tF3yH6jC0dG8s}
     ports:
       - "5678:5678"
     volumes:
@@ -81,6 +82,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - platform_net
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: agent_platform_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - flask
+      - n8n
     networks:
       - platform_net
 
