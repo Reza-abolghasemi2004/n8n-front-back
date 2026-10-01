@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}{{ project.company_name }} ({{ project.intake_id }}){% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+      <span class="mono-id">{{ project.intake_id }}</span>
+      <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px;" data-copy="{{ project.intake_id }}">Copy ID</button>
+      <span class="badge {{ project.priority | priority_badge }}">{{ project.priority }} Priority</span>
+      <span class="badge {{ project.status | status_badge }}">{{ project.status }}</span>
+    </div>
+    <h1 class="page-title">{{ project.company_name }}</h1>
+    <p class="page-subtitle">
+      {{ project.goal or "No primary goal specified" }} &middot; Created {{ project.created_at | datetime_fmt }}
+    </p>
+  </div>
+
+  <div class="page-actions">
+    <form action="{{ url_for('projects.trigger', project_id=project.id) }}" method="POST" data-loading-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary" data-loading-text="Triggering n8n...">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>Trigger n8n Workflow</span>
+      </button>
+    </form>
+
+    <a href="{{ url_for('projects.edit', project_id=project.id) }}" class="btn btn-secondary">Edit Project</a>
+
+    <form action="{{ url_for('projects.delete', project_id=project.id) }}" method="POST" data-confirm="Permanently delete '{{ project.company_name }}' ({{ project.intake_id }})?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="detail-layout">
+  <!-- Left Column: Company, Contact, Notes, Executions, Outputs -->
+  <div>
+    <!-- Company Information -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Company Information</h2>
+          <p class="card-subtitle">Organization profile and financial scope</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="kv-grid">
+          <div class="kv-item">
+            <span class="kv-label">Company Name</span>
+            <span class="kv-value">{{ project.company_name }}</span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Industry</span>
+            <span class="kv-value">{{ project.industry or "—" }}</span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Website</span>
+            <span class="kv-value">
+              {% if project.website %}
+                <a href="{{ project.website }}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline;">
+                  {{ project.website }}
+                </a>
+              {% else %}
+                —
+              {% endif %}
+            </span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Country</span>
+            <span class="kv-value">{{ project.country or "—" }}</span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Monthly Budget</span>
+            <span class="kv-value" style="font-family: var(--font-mono); color: #34d399;">
+              {{ project.formatted_budget }}
+            </span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Primary Goal</span>
+            <span class="kv-value">{{ project.goal or "—" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Contact Information</h2>
+          <p class="card-subtitle">Primary stakeholder details</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="kv-grid">
+          <div class="kv-item">
+            <span class="kv-label">Contact Name</span>
+            <span class="kv-value">{{ project.contact_name or "—" }}</span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Email</span>
+            <span class="kv-value">
+              {% if project.email %}
+                <a href="mailto:{{ project.email }}" style="color: #818cf8;">{{ project.email }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Phone</span>
+            <span class="kv-value">{{ project.phone or "—" }}</span>
+          </div>
+          <div class="kv-item">
+            <span class="kv-label">Location / Country</span>
+            <span class="kv-value">{{ project.country or "—" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Notes</h2>
+          <p class="card-subtitle">Context and instructions shared with n8n</p>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if project.notes %}
+          <div class="prose-block">{{ project.notes }}</div>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 13px;">No internal notes provided for this project.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Execution History -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">n8n Execution History ({{ project.executions | length }})</h2>
+          <p class="card-subtitle">Workflow runs linked to Project ID #{{ project.id }}</p>
+        </div>
+        <form action="{{ url_for('projects.trigger', project_id=project.id) }}" method="POST" data-loading-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-emerald btn-sm" data-loading-text="Running...">
+            + Run Workflow
+          </button>
+        </form>
+      </div>
+
+      {% if project.executions %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Execution</th>
+              <th>Workflow</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Finished</th>
+              <th>Duration</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for exec in project.executions %}
+            <tr>
+              <td>
+                <a href="{{ url_for('executions.detail', execution_id=exec.id) }}" class="mono-id">
+                  #{{ exec.id }}
+                </a>
+                {% if exec.n8n_execution_id %}
+                  <span class="cell-secondary">{{ exec.n8n_execution_id }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="cell-primary">{{ exec.workflow_name }}</span>
+                <span class="cell-secondary">Trigger: {{ exec.trigger_source }}</span>
+              </td>
+              <td>
+                <span class="badge {{ exec.status | exec_badge }}">{{ exec.status | upper }}</span>
+              </td>
+              <td>{{ exec.started_at | datetime_fmt }}</td>
+              <td>{{ exec.finished_at | datetime_fmt }}</td>
+              <td><code>{{ exec.duration_display }}</code></td>
+              <td>
+                <div class="action-group">
+                  <a href="{{ url_for('executions.detail', execution_id=exec.id) }}" class="btn btn-secondary btn-sm">Details</a>
+                  {% if exec.n8n_execution_id %}
+                  <form action="{{ url_for('executions.sync', execution_id=exec.id) }}" method="POST" data-loading-form>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-secondary btn-sm" data-loading-text="...">Sync</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding: 32px 20px;">
+        <div class="empty-title">No n8n executions recorded yet</div>
+        <p class="empty-description">Click "Trigger n8n Workflow" above to dispatch this project to n8n.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Generated Outputs -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Generated Outputs &amp; Results ({{ project.outputs | length }})</h2>
+          <p class="card-subtitle">Deliverables and structured JSONB artifacts written by n8n</p>
+        </div>
+      </div>
+
+      {% if project.outputs %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Execution</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for out in project.outputs %}
+            <tr>
+              <td>
+                <a href="{{ url_for('outputs.detail', output_id=out.id) }}" class="cell-primary">
+                  {{ out.title }}
+                </a>
+                {% if out.summary %}
+                  <span class="cell-secondary">{{ out.summary[:100] }}{% if out.summary|length > 100 %}...{% endif %}</span>
+                {% endif %}
+              </td>
+              <td><span class="service-tag">{{ out.output_type }}</span></td>
+              <td><span class="badge {{ out.status | output_badge }}">{{ out.status | upper }}</span></td>
+              <td>
+                {% if out.execution_id %}
+                  <a href="{{ url_for('executions.detail', execution_id=out.execution_id) }}" class="mono-id">#{{ out.execution_id }}</a>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>{{ out.created_at | datetime_fmt }}</td>
+              <td>
+                <div class="action-group">
+                  <a href="{{ url_for('outputs.detail', output_id=out.id) }}" class="btn btn-secondary btn-sm">View Result</a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding: 32px 20px;">
+        <div class="empty-title">No outputs generated yet</div>
+        <p class="empty-description">Outputs written to PostgreSQL by n8n workflows will appear here automatically.</p>
+      </div>
+      {% endif %}
+
+      <!-- Collapsible Manual Output Logger -->
+      <div style="border-top: 1px solid var(--border-subtle); padding: 16px 22px; background: rgba(7, 11, 20, 0.35);">
+        <details>
+          <summary style="cursor: pointer; font-weight: 600; font-size: 13px; color: #818cf8;">
+            + Record / Log Output Result for this Project
+          </summary>
+          <form action="{{ url_for('outputs.create_for_project', project_id=project.id) }}" method="POST" style="margin-top: 16px;" data-loading-form>
+            {{ output_form.hidden_tag() }}
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Output Title *</label>
+                {{ output_form.title(class="form-control", placeholder="e.g. Q4 Lead Enrichment Report") }}
+              </div>
+              <div class="form-group">
+                <label class="form-label">Output Type</label>
+                {{ output_form.output_type(class="form-select") }}
+              </div>
+              <div class="form-group full-width">
+                <label class="form-label">Summary</label>
+                {{ output_form.summary(class="form-control", rows="2", placeholder="Short summary of generated deliverable...") }}
+              </div>
+              <div class="form-group full-width">
+                <label class="form-label">Content (Markdown / Text)</label>
+                {{ output_form.content(class="form-control", rows="4", placeholder="Detailed output body...") }}
+              </div>
+              <div class="form-group full-width">
+                <label class="form-label">Structured JSONB Data (optional)</label>
+                {{ output_form.data_json(class="form-control", rows="3", placeholder='{"score": 95, "leads_count": 120}', style="font-family: var(--font-mono);") }}
+              </div>
+            </div>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primary btn-sm" data-loading-text="Saving...">Save Output</button>
+            </div>
+          </form>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Project Metadata, Status Quick-Change, Services, Attachments -->
+  <div>
+    <!-- Status Management Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Status Control</h2>
+          <p class="card-subtitle">Change intake lifecycle state</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('projects.change_status', project_id=project.id) }}" method="POST" data-loading-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" for="quick-status">Current Status</label>
+            <select id="quick-status" name="status" class="form-select">
+              {% for st in statuses %}
+                <option value="{{ st }}" {% if project.status == st %}selected{% endif %}>{{ st }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;" data-loading-text="Updating...">
+            Update Status
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Project Information -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Project Information</h2>
+          <p class="card-subtitle">Identifiers &amp; timestamps</p>
+        </div>
+      </div>
+      <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="kv-item">
+          <span class="kv-label">Database ID</span>
+          <span class="kv-value"><code>#{{ project.id }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Intake ID</span>
+          <span class="kv-value"><span class="mono-id">{{ project.intake_id }}</span></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Priority</span>
+          <span class="kv-value">
+            <span class="badge {{ project.priority | priority_badge }}">{{ project.priority }}</span>
+          </span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Status</span>
+          <span class="kv-value">
+            <span class="badge {{ project.status | status_badge }}">{{ project.status }}</span>
+          </span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Deadline</span>
+          <span class="kv-value">{{ project.deadline | date_fmt }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Created</span>
+          <span class="kv-value">{{ project.created_at | datetime_fmt }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Last Updated</span>
+          <span class="kv-value">{{ project.updated_at | datetime_fmt }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Services Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Services</h2>
+          <p class="card-subtitle">PostgreSQL JSONB array</p>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if project.services_list %}
+          <div class="service-tags">
+            {% for service in project.services_list %}
+              <span class="service-tag" style="padding: 5px 11px; font-size: 12.5px;">{{ service }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 13px;">No services assigned.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Attachments Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Attachments ({{ project.attachments_list | length }})</h2>
+          <p class="card-subtitle">Linked files &amp; assets</p>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if project.attachments_list %}
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px;">
+            {% for att in project.attachments_list %}
+              <li style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                <div style="min-width: 0;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ att.name or "Attachment" }}
+                  </div>
+                  <div style="font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ att.url }}
+                  </div>
+                </div>
+                {% if att.url and (att.url.startswith('http://') or att.url.startswith('https://') or att.url.startswith('/')) %}
+                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Open</a>
+                {% else %}
+                  <span class="service-tag">{{ att.type or "file" }}</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 13px;">No attachments uploaded or linked.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

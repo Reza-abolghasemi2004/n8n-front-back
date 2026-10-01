@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Projects &amp; Intakes{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <span class="page-eyebrow">Intake Registry</span>
+    <h1 class="page-title">Projects &amp; Intakes</h1>
+    <p class="page-subtitle">Manage client intake records stored in PostgreSQL and processed by n8n workflows.</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('projects.create') }}" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>Create Project</span>
+    </a>
+  </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('projects.index') }}" class="filter-bar">
+  <div class="filter-group search-group">
+    <label class="filter-label" for="filter-q">Search</label>
+    <input type="text" id="filter-q" name="q" class="form-control" placeholder="Company, Intake ID, contact, email, industry, goal..." value="{{ search_query }}">
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="filter-status">Status</label>
+    <select id="filter-status" name="status" class="form-select">
+      <option value="">All Statuses</option>
+      {% for st in statuses %}
+        <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="filter-priority">Priority</label>
+    <select id="filter-priority" name="priority" class="form-select">
+      <option value="">All Priorities</option>
+      {% for pr in priorities %}
+        <option value="{{ pr }}" {% if priority_filter == pr %}selected{% endif %}>{{ pr }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label class="filter-label" for="filter-service">Service</label>
+    <select id="filter-service" name="service" class="form-select">
+      <option value="">All Services</option>
+      {% for svc in available_services %}
+        <option value="{{ svc }}" {% if service_filter == svc %}selected{% endif %}>{{ svc }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="action-group" style="padding-bottom: 1px;">
+    <button type="submit" class="btn btn-primary">Filter</button>
+    {% if search_query or status_filter or priority_filter or service_filter %}
+      <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">Reset</a>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Projects Table Card -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Project Records ({{ pagination.total }})</h2>
+      <p class="card-subtitle">Click any project to inspect details, execution history, and generated outputs</p>
+    </div>
+  </div>
+
+  {% if projects %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Intake ID</th>
+          <th>Company</th>
+          <th>Industry</th>
+          <th>Budget</th>
+          <th>Services</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Deadline</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for project in projects %}
+        <tr>
+          <td>
+            <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="mono-id">{{ project.intake_id }}</a>
+          </td>
+          <td>
+            <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="cell-primary">
+              {{ project.company_name }}
+            </a>
+            <span class="cell-secondary">
+              {{ project.contact_name or project.email or project.goal or "—" }}
+            </span>
+          </td>
+          <td>{{ project.industry or "—" }}</td>
+          <td style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-primary);">
+            {{ project.formatted_budget }}
+          </td>
+          <td>
+            {% if project.services_list %}
+              <div class="service-tags">
+                {% for svc in project.services_list[:3] %}
+                  <span class="service-tag">{{ svc }}</span>
+                {% endfor %}
+                {% if project.services_list|length > 3 %}
+                  <span class="service-tag">+{{ project.services_list|length - 3 }}</span>
+                {% endif %}
+              </div>
+            {% else %}
+              <span>—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ project.priority | priority_badge }}">{{ project.priority }}</span>
+          </td>
+          <td>
+            <span class="badge {{ project.status | status_badge }}">{{ project.status }}</span>
+          </td>
+          <td>{{ project.deadline | date_fmt }}</td>
+          <td>{{ project.created_at | datetime_fmt }}</td>
+          <td>
+            <div class="action-group">
+              <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn btn-secondary btn-sm">Details</a>
+              <a href="{{ url_for('projects.edit', project_id=project.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+              <form action="{{ url_for('projects.trigger', project_id=project.id) }}" method="POST" data-loading-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <button type="submit" class="btn btn-emerald btn-sm" data-loading-text="...">Run n8n</button>
+              </form>
+              <form action="{{ url_for('projects.delete', project_id=project.id) }}" method="POST" data-confirm="Delete project '{{ project.company_name }}' ({{ project.intake_id }}) and all associated executions/outputs?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="pagination-bar">
+    <div class="pagination-info">
+      Showing page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} total records)
+    </div>
+    <div class="pagination-links">
+      {% if pagination.has_prev %}
+        <a class="page-btn" href="{{ url_for('projects.index', page=pagination.prev_num, q=search_query, status=status_filter, priority=priority_filter, service=service_filter) }}">&larr; Prev</a>
+      {% else %}
+        <span class="page-btn disabled">&larr; Prev</span>
+      {% endif %}
+
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <a class="page-btn {% if p == pagination.page %}active{% endif %}" href="{{ url_for('projects.index', page=p, q=search_query, status=status_filter, priority=priority_filter, service=service_filter) }}">{{ p }}</a>
+        {% else %}
+          <span class="page-btn disabled">&hellip;</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.has_next %}
+        <a class="page-btn" href="{{ url_for('projects.index', page=pagination.next_num, q=search_query, status=status_filter, priority=priority_filter, service=service_filter) }}">Next &rarr;</a>
+      {% else %}
+        <span class="page-btn disabled">Next &rarr;</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </div>
+    <div class="empty-title">No matching projects found</div>
+    <p class="empty-description">Try clearing your search filters or create a new project intake record.</p>
+    <div class="action-group" style="margin-top: 8px;">
+      <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">Clear Filters</a>
+      <a href="{{ url_for('projects.create') }}" class="btn btn-primary">Create Project</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

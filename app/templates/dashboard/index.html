@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title-group">
+    <span class="page-eyebrow">Automation Control Center</span>
+    <h1 class="page-title">Platform Overview</h1>
+    <p class="page-subtitle">Real-time visibility into PostgreSQL project intakes and n8n workflow executions.</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('executions.index') }}" class="btn btn-secondary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+      <span>All Executions</span>
+    </a>
+    <a href="{{ url_for('projects.create') }}" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>Create Project</span>
+    </a>
+  </div>
+</div>
+
+<!-- Main Dashboard Metric Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Total Projects</span>
+      <div class="stat-icon indigo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-value">{{ stats.total_projects }}</div>
+    <div class="stat-caption">All intake records in PostgreSQL</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Active Projects</span>
+      <div class="stat-icon cyan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-value">{{ stats.active_projects }}</div>
+    <div class="stat-caption">New, Validated, Queued &amp; In Progress</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Running Executions</span>
+      <div class="stat-icon amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-value">{{ stats.running_executions }}</div>
+    <div class="stat-caption">Active n8n workflows in flight</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Successful Executions</span>
+      <div class="stat-icon emerald">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-value">{{ stats.successful_executions }}</div>
+    <div class="stat-caption">{{ stats.total_outputs }} generated deliverables saved</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Failed Executions</span>
+      <div class="stat-icon rose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-value">{{ stats.failed_executions }}</div>
+    <div class="stat-caption">Workflows requiring inspection</div>
+  </div>
+</div>
+
+<!-- Recent Projects Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Recent Projects</h2>
+      <p class="card-subtitle">Latest client intakes managed in PostgreSQL and processed by n8n</p>
+    </div>
+    <a href="{{ url_for('projects.index') }}" class="btn btn-secondary btn-sm">View All Projects &rarr;</a>
+  </div>
+
+  {% if recent_projects %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Industry</th>
+          <th>Services</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Deadline</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for project in recent_projects %}
+        <tr>
+          <td>
+            <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="cell-primary">
+              {{ project.company_name }}
+            </a>
+            <span class="cell-secondary">
+              <span class="mono-id">{{ project.intake_id }}</span>
+              {% if project.goal %} &middot; {{ project.goal }}{% endif %}
+            </span>
+          </td>
+          <td>{{ project.industry or "—" }}</td>
+          <td>
+            {% if project.services_list %}
+              <div class="service-tags">
+                {% for svc in project.services_list[:3] %}
+                  <span class="service-tag">{{ svc }}</span>
+                {% endfor %}
+                {% if project.services_list|length > 3 %}
+                  <span class="service-tag">+{{ project.services_list|length - 3 }}</span>
+                {% endif %}
+              </div>
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ project.priority | priority_badge }}">{{ project.priority }}</span>
+          </td>
+          <td>
+            <span class="badge {{ project.status | status_badge }}">{{ project.status }}</span>
+          </td>
+          <td>{{ project.deadline | date_fmt }}</td>
+          <td>{{ project.created_at | datetime_fmt }}</td>
+          <td>
+            <div class="action-group">
+              <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn btn-secondary btn-sm">View</a>
+              <form action="{{ url_for('projects.trigger', project_id=project.id) }}" method="POST" data-loading-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ url_for('dashboard.index') }}">
+                <button type="submit" class="btn btn-emerald btn-sm" data-loading-text="Running" title="Trigger n8n Workflow">
+                  Run n8n
+                </button>
+              </form>
+              <a href="{{ url_for('projects.edit', project_id=project.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      </svg>
+    </div>
+    <div class="empty-title">No project intakes recorded yet</div>
+    <p class="empty-description">Create your first project intake record to begin triggering n8n automation workflows.</p>
+    <a href="{{ url_for('projects.create') }}" class="btn btn-primary" style="margin-top: 8px;">Create First Project</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recent Executions Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Recent Executions</h2>
+      <p class="card-subtitle">Latest n8n workflow runs and status updates</p>
+    </div>
+    <a href="{{ url_for('executions.index') }}" class="btn btn-secondary btn-sm">View Execution Log &rarr;</a>
+  </div>
+
+  {% if recent_executions %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Workflow</th>
+          <th>Status</th>
+          <th>Started</th>
+          <th>Finished</th>
+          <th>Duration</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for execution in recent_executions %}
+        <tr>
+          <td>
+            {% if execution.project %}
+              <a href="{{ url_for('projects.detail', project_id=execution.project.id) }}" class="cell-primary">
+                {{ execution.project.company_name }}
+              </a>
+              <span class="cell-secondary"><span class="mono-id">{{ execution.project.intake_id }}</span></span>
+            {% else %}
+              <span>Project #{{ execution.project_id }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="cell-primary">{{ execution.workflow_name }}</span>
+            <span class="cell-secondary">
+              {% if execution.n8n_execution_id %}
+                <code>{{ execution.n8n_execution_id }}</code>
+              {% else %}
+                Run #{{ execution.id }}
+              {% endif %}
+              &middot; {{ execution.trigger_source }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {{ execution.status | exec_badge }}">{{ execution.status | upper }}</span>
+          </td>
+          <td>{{ execution.started_at | datetime_fmt }}</td>
+          <td>{{ execution.finished_at | datetime_fmt }}</td>
+          <td><code>{{ execution.duration_display }}</code></td>
+          <td>
+            <div class="action-group">
+              <a href="{{ url_for('executions.detail', execution_id=execution.id) }}" class="btn btn-secondary btn-sm">Inspect</a>
+              {% if execution.n8n_execution_id %}
+              <form action="{{ url_for('executions.sync', execution_id=execution.id) }}" method="POST" data-loading-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary btn-sm" data-loading-text="...">Sync</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+    </div>
+    <div class="empty-title">No n8n executions yet</div>
+    <p class="empty-description">Trigger a workflow from any project detail page or configure your n8n webhook to log runs.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
